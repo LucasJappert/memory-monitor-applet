@@ -12,10 +12,13 @@ class MyApplet extends Applet.Applet {
 
         // Crear el área de dibujo
         this.drawingArea = new St.DrawingArea();
-        this.drawingArea.width = 50; // Ancho fijo para que sea visible en el panel
-        this.drawingArea.height = panel_height; // Ajuste de altura para ocupar el panel
+        this.drawingArea.width = 50;
+        this.drawingArea.height = panel_height;
         this.drawingArea.connect("repaint", Lang.bind(this, this._onRepaint));
         this.actor.add(this.drawingArea);
+
+        // Crear el tooltip de Cinnamon
+        this.set_applet_tooltip("Cargando información de memoria...");
 
         // Iniciar el bucle de actualización
         this._update();
@@ -23,8 +26,26 @@ class MyApplet extends Applet.Applet {
 
     _update() {
         this.memoryData = this._getMemoryUsage();
+
+        // Actualizar el contenido del tooltip
+        this._updateTooltip();
+
         this.drawingArea.queue_repaint();
         Mainloop.timeout_add_seconds(5, Lang.bind(this, this._update));
+    }
+
+    _updateTooltip() {
+        // Construir el texto para el tooltip con la información de uso de memoria
+        let tooltipText = "Memoria en uso:\n";
+        for (let process in this.memoryData) {
+            if (process !== "available") {
+                tooltipText += `${process}: ${(this.memoryData[process] / 1024).toFixed(2)} MB\n`;
+            }
+        }
+        tooltipText += `Disponible: ${(this.memoryData["available"] / 1024).toFixed(2)} MB`;
+
+        // Configurar el texto del tooltip
+        this.set_applet_tooltip(tooltipText);
     }
 
     _getMemoryUsage() {
@@ -47,15 +68,17 @@ class MyApplet extends Applet.Applet {
             }
         });
 
-        // Filtrar y sumar procesos importantes
         let filteredUsage = {};
-        const targetProcesses = ["code", "brave", "obs"];
+        const targetProcesses = ["code", "brave"];
         for (let process in usage) {
             let memoryKb = usage[process];
-            if (targetProcesses.includes(process) || memoryKb > 1024 * 1024) { // 1 GB threshold
+            if (targetProcesses.includes(process) || memoryKb > 1024 * 1024) {
                 filteredUsage[process] = (filteredUsage[process] || 0) + memoryKb;
             }
         }
+
+        let totalUsedMemory = Object.values(filteredUsage).reduce((a, b) => a + b, 0);
+        filteredUsage["available"] = (16 * 1024 * 1024) - totalUsedMemory;
         return filteredUsage;
     }
 
@@ -64,16 +87,15 @@ class MyApplet extends Applet.Applet {
         const height = this.drawingArea.height;
         const ctx = area.get_context();
 
-        // Fondo transparente
         ctx.setSourceRGBA(0, 0, 0, 0);
         ctx.rectangle(0, 0, width, height);
         ctx.fill();
 
-        const totalMemory = 16 * 1024 * 1024; // 16 GB en KB
+        const totalMemory = 16 * 1024 * 1024;
         const colors = {
-            "code": [0, 0, 1, 1],   // Azul
-            "brave": [1, 0.5, 0, 1], // Naranja
-            "obs": [0, 1, 0, 1]      // Verde
+            "code": [0, 0, 1, 1],
+            "brave": [1, 0.5, 0, 1],
+            "available": [0, 1, 0, 0.6]
         };
 
         let x = 0;
@@ -82,7 +104,7 @@ class MyApplet extends Applet.Applet {
         for (let process in this.memoryData) {
             let memoryKb = this.memoryData[process];
             let barHeight = (memoryKb / totalMemory) * height;
-            let color = colors[process] || [0.5, 0.5, 0.5, 1]; // Gris si no se especifica el color
+            let color = colors[process] || [0.5, 0.5, 0.5, 1];
 
             ctx.setSourceRGBA(...color);
             ctx.rectangle(x, height - barHeight, barWidth, barHeight);
