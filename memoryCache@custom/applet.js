@@ -1,49 +1,98 @@
-const St = imports.gi.St;
-const Clutter = imports.gi.Clutter;
+const Applet = imports.ui.applet;
 const Lang = imports.lang;
+const St = imports.gi.St;
 const Mainloop = imports.mainloop;
+const GLib = imports.gi.GLib;
+const Clutter = imports.gi.Clutter;
+const Cairo = imports.cairo;
 
-class MyApplet {
-    constructor(metadata, orientation, panelHeight, instance_id) {
-        this.panelHeight = panelHeight;
+class MyApplet extends Applet.Applet {
+    constructor(metadata, orientation, panel_height, instance_id) {
+        super(orientation, panel_height, instance_id);
 
         // Crear el área de dibujo
         this.drawingArea = new St.DrawingArea();
-        this.drawingArea.set_width(100); // Ancho de 100 px para testeo inicial
-        this.drawingArea.set_height(this.panelHeight);
-        this.drawingArea.connect("repaint", Lang.bind(this, this.drawStaticBars));
-
-        // Agregar el área de dibujo al applet
-        this.actor = new St.BoxLayout();
+        this.drawingArea.width = 50; // Ancho fijo para que sea visible en el panel
+        this.drawingArea.height = panel_height; // Ajuste de altura para ocupar el panel
+        this.drawingArea.connect("repaint", Lang.bind(this, this._onRepaint));
         this.actor.add(this.drawingArea);
 
-        // Actualización periódica de la gráfica
-        Mainloop.timeout_add_seconds(5, Lang.bind(this, this.updateDrawing));
+        // Iniciar el bucle de actualización
+        this._update();
     }
 
-    updateDrawing() {
-        // Forzar el repintado de las barras
+    _update() {
+        this.memoryData = this._getMemoryUsage();
         this.drawingArea.queue_repaint();
-        return true;
+        Mainloop.timeout_add_seconds(5, Lang.bind(this, this._update));
     }
 
-    drawStaticBars() {
-        // Obtener el contexto de dibujo
-        const cr = this.drawingArea.get_context();
+    _getMemoryUsage() {
+        let usage = {};
+        let [ok, out, err] = GLib.spawn_command_line_sync("sh -c 'ps aux'");
+        if (!ok) return usage;
 
-        // Dibuja una barra azul (Code)
-        cr.setSourceRGB(0.2, 0.6, 0.8); // Color azul
-        cr.rectangle(10, this.panelHeight - 30, 30, 30); // Rectángulo de altura prueba
-        cr.fill();
+        let lines = out.toString().split("\n");
+        lines.forEach(line => {
+            let parts = line.trim().split(/\s+/);
+            if (parts.length > 5) {
+                let command = parts[10];
+                let memoryKb = parseFloat(parts[5]) || 0;
+                let name = command.split("/").pop();
+                if (usage[name]) {
+                    usage[name] += memoryKb;
+                } else {
+                    usage[name] = memoryKb;
+                }
+            }
+        });
 
-        // Dibuja una barra naranja (Brave)
-        cr.setSourceRGB(1.0, 0.5, 0.0); // Color naranja
-        cr.rectangle(50, this.panelHeight - 50, 30, 50); // Rectángulo de altura prueba
-        cr.fill();
+        // Filtrar y sumar procesos importantes
+        let filteredUsage = {};
+        const targetProcesses = ["code", "brave", "obs"];
+        for (let process in usage) {
+            let memoryKb = usage[process];
+            if (targetProcesses.includes(process) || memoryKb > 1024 * 1024) { // 1 GB threshold
+                filteredUsage[process] = (filteredUsage[process] || 0) + memoryKb;
+            }
+        }
+        return filteredUsage;
+    }
+
+    _onRepaint(area) {
+        const width = this.drawingArea.width;
+        const height = this.drawingArea.height;
+        const ctx = area.get_context();
+
+        // Fondo transparente
+        ctx.setSourceRGBA(0, 0, 0, 0);
+        ctx.rectangle(0, 0, width, height);
+        ctx.fill();
+
+        const totalMemory = 16 * 1024 * 1024; // 16 GB en KB
+        const colors = {
+            "code": [0, 0, 1, 1],   // Azul
+            "brave": [1, 0.5, 0, 1], // Naranja
+            "obs": [0, 1, 0, 1]      // Verde
+        };
+
+        let x = 0;
+        const barWidth = width / Object.keys(this.memoryData).length;
+
+        for (let process in this.memoryData) {
+            let memoryKb = this.memoryData[process];
+            let barHeight = (memoryKb / totalMemory) * height;
+            let color = colors[process] || [0.5, 0.5, 0.5, 1]; // Gris si no se especifica el color
+
+            ctx.setSourceRGBA(...color);
+            ctx.rectangle(x, height - barHeight, barWidth, barHeight);
+            ctx.fill();
+
+            x += barWidth;
+        }
     }
 }
 
-// Colocar la función main al final para inicializar el applet
-function main(metadata, orientation, panelHeight, instance_id) {
-    return new MyApplet(metadata, orientation, panelHeight, instance_id);
+function main(metadata, orientation, panel_height, instance_id) {
+    return new MyApplet(metadata, orientation, panel_height, instance_id);
 }
