@@ -1,6 +1,6 @@
-# 🌟 My Cache Memory Monitor
+# 🌟 My Memory Monitor
 
-![My Cache Memory Monitor Screenshot](preview.png)
+![My Memory Monitor Screenshot](preview.png)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-1.0-green.svg)
@@ -8,7 +8,7 @@
 
 ### 📖 Description
 
-**My Cache Memory Monitor** is an applet for Linux Mint that displays the system's cache memory usage in real-time on the panel. It is useful for monitoring memory usage directly from your desktop without the need to open any other monitoring tools.
+**My Memory Monitor** is an applet for Linux Mint that displays the system's cache memory usage in real-time on the panel. It is useful for monitoring memory usage directly from your desktop without the need to open any other monitoring tools.
 
 ### 🌈 Features
 
@@ -34,7 +34,7 @@
 3. **Add the Applet**:
 
     - Right-click on your panel in Linux Mint and select **"Applets"**.
-    - Find **"My Cache Memory Monitor"** in the list and click **Add** to activate it.
+    - Find **"My Memory Monitor"** in the list and click **Add** to activate it.
 
 4. **Configure the Applet**: You can configure the update interval and other settings through the applet’s preferences menu (if applicable).
 
@@ -62,7 +62,7 @@ If your applet includes additional configuration options, describe them here. Fo
 
 ### 🤝 Contributing
 
-We welcome contributions to improve **My Cache Memory Monitor**! If you have ideas for new features, optimizations, or bug fixes, please feel free to submit a pull request or open an issue on the [GitHub repository](https://github.com/LucasJappert/memory-monitor-applet). Let's work together to make this applet even better for the Linux Mint community!
+We welcome contributions to improve **My Memory Monitor**! If you have ideas for new features, optimizations, or bug fixes, please feel free to submit a pull request or open an issue on the [GitHub repository](https://github.com/LucasJappert/memory-monitor-applet). Let's work together to make this applet even better for the Linux Mint community!
 
 ### 📄 License
 
