@@ -1,5 +1,7 @@
 # 🌟 My Cache Memory Monitor
 
+![My Cache Memory Monitor Screenshot](preview.png)
+
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-1.0-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux_Mint-orange.svg)
