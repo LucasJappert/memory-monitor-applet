@@ -1,7 +1,0 @@
-{
-    "uuid": "memoryCache@custom",
-    "name": "Mi Monitor de Memoria Cache",
-    "description": "Muestra el uso de memoria cache del sistema en tiempo real",
-    "version": "1.0",
-    "max-instances": 1
-}

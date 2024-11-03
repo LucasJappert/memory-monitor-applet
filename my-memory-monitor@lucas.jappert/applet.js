@@ -25,9 +25,11 @@ const GetMemoryUsageByPattern = (pattern, excludePattern) => {
 
     // Convertimos la salida a string y dividimos por líneas
     let memoryValues = ByteArray.toString(stdout).trim().split("\n");
+    if (memoryValues.length === 0) return 0;
 
     // Convertimos cada línea a un número y sumamos la memoria total en KB
     let totalMemoryKB = memoryValues.reduce((acc, value) => acc + parseInt(value, 10), 0);
+    if (isNaN(totalMemoryKB)) return 0;
 
     // Convertimos de KB a MB
     let totalMemoryMB = totalMemoryKB / 1024;
@@ -55,7 +57,7 @@ const UpdateMemoryInfo = () => {
     }
     MEMORY_DATA.customProcessesMemory.sort((a, b) => b.valueInMb - a.valueInMb);
 
-    const otherProcessesMemory = MEMORY_DATA.totalUsedMemory() - MEMORY_DATA.customProcessesMemory.reduce((acc, process) => acc + process.valueInMb, 0);
+    const otherProcessesMemory = MEMORY_DATA.totalUsedMemory() - MEMORY_DATA.totalCustomProcessesMemory();
     MEMORY_DATA.otherProcessesMemory.UpdateValue(otherProcessesMemory, MEMORY_DATA.totalUsedMemory());
 }
 
@@ -78,7 +80,7 @@ class MemoryData {
     }
 
     UpdateValue = (valueInMb, totalMemoryInMb) => {
-        this.valueInMb = valueInMb;
+        this.valueInMb = Math.round(valueInMb, 2);
 
         if (totalMemoryInMb <= 0) this.percent = 0;
         else this.percent = Math.round((valueInMb / totalMemoryInMb) * 100);
@@ -114,15 +116,16 @@ const MEMORY_DATA = {
     usedMemory: new MemoryData("Used", 0, 0, [0.9196, 0.1647, 0.1686, 1.0]),
     customProcessesMemory: [
         new CustomProcessData("Brave", 0, 0, [0.7333, 0.2431, 0.0118, 1.0], "brave"),
-        new CustomProcessData("Code", 0, 0, [0.0078, 0.2431, 0.5412, 1.0], "code", ".vscode/extensions"),
+        new CustomProcessData("Code", 0, 0, [0.0078, 0.2431, 0.5412, 1.0], "code/code", ".vscode/extensions"),
         new CustomProcessData("Code Extensions", 0, 0, [0.0, 0.4667, 0.7137, 1.0], ".vscode/extensions"),
     ],
     otherProcessesMemory: new MemoryData("Other Processes", 0, 0, [1, 1, 1, 0.5]),
     totalUsedMemory: () => MEMORY_DATA.usedMemory.valueInMb + MEMORY_DATA.buffCacheMemory.valueInMb,
+    totalCustomProcessesMemory: () => MEMORY_DATA.customProcessesMemory.reduce((acc, process) => acc + process.valueInMb, 0),
 };
 
 //TODO: Destroy applet when its removed
-class MyApplet extends Applet.Applet {
+class MemoryCacheMonitor extends Applet.Applet {
     constructor(metadata, orientation, panel_height, instance_id) {
         super(orientation, panel_height, instance_id);
 
@@ -137,10 +140,18 @@ class MyApplet extends Applet.Applet {
         // Variable para almacenar el ID del timer
         this._refreshTimer = null;
 
-        // Actualizamos los datos periódicamente
-        this._refreshData();
+        // Inicia el bucle de actualización
+        this._startRefreshingData();
     }
 
+    _startRefreshingData() {
+        this._refreshData(); // Llama a la actualización una vez
+        // Programa el bucle de actualización y guarda el ID del timer
+        this._refreshTimer = Mainloop.timeout_add(1000, () => {
+            this._refreshData();
+            return true; // Mantiene el loop activo
+        });
+    }
     _refreshData() {
         // Guardamos los datos para usarlos en el repaint y en el tooltip
         UpdateMemoryInfo();
@@ -149,9 +160,6 @@ class MyApplet extends Applet.Applet {
 
         // Actualizamos el tooltip con los datos más recientes
         this._updateTooltip();
-
-        // Programamos la siguiente actualización
-        Mainloop.timeout_add(1000, this._refreshData.bind(this));
     }
 
     _updateTooltip() {
@@ -222,20 +230,21 @@ class MyApplet extends Applet.Applet {
             { color: MEMORY_DATA.buffCacheMemory.color, value: MEMORY_DATA.buffCacheMemory.percent / 100 }
         ]);
 
-        const piecesOfChart = [];
+        const segments = [];
         for (const customProcess of MEMORY_DATA.customProcessesMemory) {
-            piecesOfChart.push({ color: customProcess.color, value: customProcess.percent / 100 });
+            const value = customProcess.percent / 100;
+            segments.push({ color: customProcess.color, value });
         }
-        piecesOfChart.push({ color: MEMORY_DATA.otherProcessesMemory.color, value: MEMORY_DATA.otherProcessesMemory.percent / 100 });
-        this._drawPieChart(ctx, area.width - radius - 2, radius + 2, radius, piecesOfChart);
+        segments.push({ color: MEMORY_DATA.otherProcessesMemory.color, value: MEMORY_DATA.otherProcessesMemory.percent / 100 });
+        this._drawPieChart(ctx, area.width - radius - 2, radius + 2, radius, segments);
     }
 
     _drawPieChart(ctx, x, y, radius, segments) {
         let startAngle = -Math.PI / 2;
-        segments.forEach(segment => {
-            let angle = startAngle + segment.value * 2 * Math.PI;
+        for (const segment of segments) {
+            if (segment.value <= 0 || isNaN(segment.value)) continue;
 
-            // Dibujamos el segmento
+            const angle = startAngle + segment.value * 2 * Math.PI;
             ctx.setSourceRGBA(...segment.color);
             ctx.moveTo(x, y);
             ctx.arc(x, y, radius, startAngle, angle);
@@ -243,12 +252,12 @@ class MyApplet extends Applet.Applet {
             ctx.fill();
 
             startAngle = angle;
-        });
+        }
     }
 
     // Método que se ejecuta cuando el applet es eliminado
-    on_applet_removed() {
-        global.log(`Applet removed: cleaning up resources`);
+    on_applet_removed_from_panel() {
+        global.log(`Applet ${this.constructor.name} removed from panel`);
 
         // Elimina el timer de actualización para detener el proceso
         if (this._refreshTimer) {
@@ -256,13 +265,17 @@ class MyApplet extends Applet.Applet {
             this._refreshTimer = null;
         }
 
-        // Limpia cualquier otro recurso que necesite ser liberado
+        // Verifica y elimina el área de dibujo si aún existe
+        if (this.drawingArea) {
+            this.drawingArea.destroy();
+            this.drawingArea = null; // Limpia la referencia para evitar accesos futuros
+        }
     }
 }
 
 
 function main(metadata, orientation, panel_height, instance_id) {
-    return new MyApplet(metadata, orientation, panel_height, instance_id);
+    return new MemoryCacheMonitor(metadata, orientation, panel_height, instance_id);
 }
 
 // AUXILIARIES FUNCTIONS

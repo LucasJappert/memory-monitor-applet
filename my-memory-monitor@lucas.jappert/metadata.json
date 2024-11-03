@@ -1,0 +1,7 @@
+{
+    "uuid": "my-memory-monitor@lucas.jappert",
+    "name": "My Memory Monitor",
+    "description": "Displays the system memory usage in real-time",
+    "version": "1.0",
+    "max-instances": 1
+}
