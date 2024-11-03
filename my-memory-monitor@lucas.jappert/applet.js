@@ -116,10 +116,10 @@ const MEMORY_DATA = {
     usedMemory: new MemoryData("Used", 0, 0, [0.9196, 0.1647, 0.1686, 1.0]),
     customProcessesMemory: [
         new CustomProcessData("Brave", 0, 0, [0.7333, 0.2431, 0.0118, 1.0], "brave"),
-        new CustomProcessData("Code", 0, 0, [0.0078, 0.2431, 0.5412, 1.0], "code/code", ".vscode/extensions"),
-        new CustomProcessData("Code Extensions", 0, 0, [0.0, 0.4667, 0.7137, 1.0], ".vscode/extensions"),
+        new CustomProcessData("VSCode", 0, 0, [0.0078, 0.2431, 0.5412, 1.0], "code/code", ".vscode/extensions"),
+        new CustomProcessData("VSCode Extensions", 0, 0, [0.0, 0.4667, 0.7137, 1.0], ".vscode/extensions"),
     ],
-    otherProcessesMemory: new MemoryData("Other Processes", 0, 0, [1, 1, 1, 0.5]),
+    otherProcessesMemory: new MemoryData("Others", 0, 0, [1, 1, 1, 0.5]),
     totalUsedMemory: () => MEMORY_DATA.usedMemory.valueInMb + MEMORY_DATA.buffCacheMemory.valueInMb,
     totalCustomProcessesMemory: () => MEMORY_DATA.customProcessesMemory.reduce((acc, process) => acc + process.valueInMb, 0),
 };
